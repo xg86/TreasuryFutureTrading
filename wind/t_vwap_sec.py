@@ -32,7 +32,7 @@ def get_vwap(df, instrument):
     # df.drop('Time', axis=1, inplace=True)
     # df1 = df.groupby('pre_close').apply(agg_func)
     # df1 = df.groupby(pd.Grouper(freq='1Min')).apply(lambda x: x * df.loc[x.index, "volume"].sum() /df.volume.sum())
-    ps1 = df.groupby(pd.Grouper(freq='1Min')).apply(wavg, 'last', "volume")
+    ps1 = df.resample("15s").apply(wavg, 'last', "volume")
     df2 = pd.DataFrame({'ts_date': ps1.index, instrument:  ps1.values})
     return df2
 
@@ -56,7 +56,7 @@ dfOutput = dfOutput.dropna()
 dfOutput['diff'] = 2*dfOutput['tf'] - dfOutput['ts'] - dfOutput['t']
 dfOutput['zcore10'] = zscore(dfOutput['diff'], 10)
 
-dfOutput.to_csv(filename+"_vwap_all.csv")
+dfOutput.to_csv(filename+"_sec_vwap_all.csv")
 '''
 wm = lambda x: (x * df.loc[x.index, "flow"]).sum() / df.flow.sum()
 

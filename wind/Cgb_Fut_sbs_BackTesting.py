@@ -31,7 +31,7 @@ class WindUnit:
     def get_times(self):
         return self.times
 
-class BackTestingSystem:
+class BackTestingSystem_SBS:
 
     def __init__(self, numEquities, pointPrices, marginPcts, contractNums):
         self.numEquities = numEquities
@@ -130,7 +130,7 @@ class BackTestingSystem:
 
     def preprocessing(self):
         print("****************************************************************")
-        print("Start preprocessing...")
+        print("SBS -> Start preprocessing...")
         self.t_data_df['time'] = pd.to_datetime(self.t_data_df['time'])
         self.t_data_df['ticktime'] = self.t_data_df['time']
         self.t_data_df.set_index('time', inplace=True)
@@ -147,7 +147,7 @@ class BackTestingSystem:
     def processing(self):
         self.preprocessing()
         print("****************************************************************")
-        print("Start calculate strategy...")
+        print("SBS -> Start calculate strategy...")
 
         for idx, row in self.df.iterrows():
             ts_date_val = row['ts_date']
@@ -161,22 +161,23 @@ class BackTestingSystem:
                 self.unwind(row)
             elif (self._enterSignal(row['zcore10']) and ts_time_num < self.cutoff_time):
                 self.wind(row)
-        print("complete calculation")
+        print("SBS -> complete calculation")
         print("**************************************************")
 
     def _enterSignal(self, zcore10):
-        return zcore10 >= self.zscore_entry
+        return zcore10 <= self.zscore_entry
 
     def _exitSignal(self, zcore10):
-        return zcore10 <= self.zscore_exit
+        return zcore10 >= self.zscore_exit
 
     def _exitSignalCutOff(self, zcore10):
-        return zcore10 <= self.cutoff_zscore_exit
+        return zcore10 >= self.cutoff_zscore_exit
 
-    def getTickPrice(self, ts_date, isWind):
+    def getTickPrice(self, ts_date, isWind, secondsDelta):
         # from_str = str(ts_date) + ':00'
         from_str = str(ts_date)
-        to_str = str(ts_date)[:-2] + '59'
+        to_str = str(ts_date)[:-2] + secondsDelta
+        #to_str = str(ts_date)[:-2] + '59'
         # from_ts = datetime.strptime(from_str, "%m/%d/%Y %H:%M:%S")
         # to_ts = datetime.strptime(to_str, "%m/%d/%Y %H:%M:%S")
         from_ts = datetime.strptime(from_str, "%Y-%m-%d %H:%M:%S")
@@ -188,36 +189,36 @@ class BackTestingSystem:
         tickPrices = np.zeros(3)
         tickTimes = [None] * 3
 
-        # wind buy(2y)-sell(5y)-buy(10y). unwind sbs
+        # wind sell(2y)-buy(5y)-sell(10y). unwind bsb
         if(len(ts_df) > 0 and isWind):
             #tickPrices[0] = ts_df.iloc[0]['bid']
-            tickPrices[0] = self.priceEnhance(ts_df, len(ts_df), 'bid')
+            tickPrices[0] = self.priceEnhance(ts_df, len(ts_df), 'ask')
             tickTimes[0] = ts_df.iloc[0]['ticktime']
         elif (len(ts_df) > 0):
             #tickPrices[0] = ts_df.iloc[0]['ask']
-            tickPrices[0] = self.priceEnhance(ts_df, len(ts_df), 'ask')
+            tickPrices[0] = self.priceEnhance(ts_df, len(ts_df), 'bid')
             tickTimes[0] = ts_df.iloc[0]['ticktime']
         else:
           print('ts_df is None from {} to "{}!"'.format(from_str, to_str))
 
         if (len(tf_df) > 0 and isWind):
             #tickPrices[1] = tf_df.iloc[0]['ask']
-            tickPrices[1] = self.priceEnhance(tf_df, len(tf_df), 'ask')
+            tickPrices[1] = self.priceEnhance(tf_df, len(tf_df), 'bid')
             tickTimes[1] = tf_df.iloc[0]['ticktime']
         elif (len(tf_df) > 0):
             #tickPrices[1] = tf_df.iloc[0]['bid']
-            tickPrices[1] = self.priceEnhance(tf_df, len(tf_df), 'bid')
+            tickPrices[1] = self.priceEnhance(tf_df, len(tf_df), 'ask')
             tickTimes[1] = tf_df.iloc[0]['ticktime']
         else:
             print('tf_df is None from {} to "{}!"'.format(from_str, to_str))
 
         if (len(t_df) > 0 and isWind):
             #tickPrices[2] = t_df.iloc[0]['bid']
-            tickPrices[2] = self.priceEnhance(t_df, len(t_df), 'bid')
+            tickPrices[2] = self.priceEnhance(t_df, len(t_df), 'ask')
             tickTimes[2] = t_df.iloc[0]['ticktime']
         elif (len(t_df) > 0):
             #tickPrices[2] = t_df.iloc[0]['ask']
-            tickPrices[2] = self.priceEnhance(t_df, len(t_df), 'ask')
+            tickPrices[2] = self.priceEnhance(t_df, len(t_df), 'bid')
             tickTimes[2] = t_df.iloc[0]['ticktime']
         else:
             print('t_df is None from {} to "{}!"'.format(from_str, to_str))
@@ -226,13 +227,13 @@ class BackTestingSystem:
 
     def priceEnhance(self, df, num, side):
         tickPrices = df.head(num)[side]
-        return tickPrices.median()
         #return tickPrices.max() if side == 'ask' else tickPrices.min()
+        return tickPrices.median()
 
     def wind(self, row):
         #check time here
         matrix = self.contractNums * self.marginPcts
-        tickPrices, tickTimes = self.getTickPrice(row['ts_date'], True)
+        tickPrices, tickTimes = self.getTickPrice(row['ts_date'], True, '05')
         # check tickPrices, tickTimes if none here , return
         if None in tickTimes:
             return
@@ -259,7 +260,7 @@ class BackTestingSystem:
             trade_pair.append(unit.get_prices()[0])
             trade_pair.append(unit.get_prices()[1])
             trade_pair.append(unit.get_prices()[2])
-            tickPrices, tickTimes = self.getTickPrice(row['ts_date'], False)
+            tickPrices, tickTimes = self.getTickPrice(row['ts_date'], False, '30')
             trade_pair.append(str(tickTimes[0])[:19])
             trade_pair.append(str(tickTimes[1])[:19])
             trade_pair.append(str(tickTimes[2])[:19])
@@ -280,16 +281,23 @@ class BackTestingSystem:
         return self.portInitMargin
 
     def calculateDailyPnL(self):
-        # wind buy(2y)-sell(5y)-buy(10y). unwind sbs
-        self.tradeRecordsDf['diff_ts'] = self.tradeRecordsDf['unwind_ts_p'] - self.tradeRecordsDf['wind_ts_p']
-        self.tradeRecordsDf['diff_tf'] = self.tradeRecordsDf['wind_tf_p'] - self.tradeRecordsDf['unwind_tf_p']
-        self.tradeRecordsDf['diff_t'] = self.tradeRecordsDf['unwind_t_p'] - self.tradeRecordsDf['wind_t_p']
+        # wind sell(2y)-buy(5y)-sell(10y). unwind bsb
+        self.tradeRecordsDf['diff_ts'] = self.tradeRecordsDf['wind_ts_p'] - self.tradeRecordsDf['unwind_ts_p']
+        self.tradeRecordsDf['diff_tf'] = self.tradeRecordsDf['unwind_tf_p'] - self.tradeRecordsDf['wind_tf_p']
+        self.tradeRecordsDf['diff_t'] = self.tradeRecordsDf['wind_ts_p'] - self.tradeRecordsDf['unwind_t_p']
 
         self.tradeRecordsDf['sum-2-3-1'] = self.tradeRecordsDf['diff_ts']* self.pointPrices[0] * self.contractNums[0] \
                                      + self.tradeRecordsDf['diff_tf'] * self.pointPrices[1] * self.contractNums [1] \
-                                     + self.tradeRecordsDf['diff_t']* self.pointPrices[2] * self.contractNums[2]
+                                     + self.tradeRecordsDf['diff_t'] * self.pointPrices[2] * self.contractNums[2]
         self.PnL = self.tradeRecordsDf['sum-2-3-1'] .sum()
         print("PnL: ", self.PnL)
+
+        Sharpe_Ratio = self.tradeRecordsDf['sum-2-3-1'].mean() / self.tradeRecordsDf['sum-2-3-1'].std()
+        print("Sharpe_Ratio: ", Sharpe_Ratio)
+
+        annual_Sharpe_Ratio = (252**0.5)*Sharpe_Ratio
+
+        print("annual_Sharpe_Ratio: ", annual_Sharpe_Ratio)
 
     def calculateDailyFee(self):
         print("Total Fee: ", self.total_fee)
