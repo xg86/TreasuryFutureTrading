@@ -9,7 +9,7 @@ from Cgb_Fut_BackTesting import WindUnit
 
 
 windPosList = []
-data_file='国债期货20221013.xlsx'
+data_file='国债期货20221014.xlsx'
 instrument1 = 'tf'
 instrument2 = 't'
 zscore_wind = 0.5
@@ -170,7 +170,6 @@ def Trade2Contract(df, var1, var2, buy, sell, w2):
     plt.legend([var1, var2, 'Buy Signal', 'Sell Signal'])
     plt.show()
 
-
 def PairsTrade(S1, S2, window1, window2, ts_date,ts_data_df,t_data_df):
     # If window length is 0, algorithm doesn't make sense, so exit
     if (window1 == 0) or (window2 == 0):
@@ -178,10 +177,10 @@ def PairsTrade(S1, S2, window1, window2, ts_date,ts_data_df,t_data_df):
     # Compute rolling mean and rolling standard deviation
     # ratios = 4*S1-S2-300
     ratios = S1 / S2
-    mv_ave1 = ratios.rolling(window=window1, center=False).mean()
-    mv_ave2 = ratios.rolling(window=window2, center=False).mean()
-    mv_std = ratios.rolling(window=window2, center=False).std() #wrong, it should not rolling window STD
-    #mv_std = ratios.std()
+    mv_ave1 = ratios.rolling(window=window1, center=False).mean().shift(1)
+    mv_ave2 = ratios.rolling(window=window2, center=False).mean().shift(1)
+    #mv_std = ratios.rolling(window=window2, center=False).std() #wrong, it should not rolling window STD
+    mv_std = ratios.rolling(window=window2, center=False).std(ddof=0).shift(1)
     zscore = (mv_ave1 - mv_ave2) / mv_std
 
     # Simulate trading
@@ -218,7 +217,7 @@ def PairsTrade(S1, S2, window1, window2, ts_date,ts_data_df,t_data_df):
 
 def unwind(ts_date,ts_data_df,t_data_df):
     # from_str = str(ts_date) + ':00'
-    print("unwind: ", ts_date)
+    #print("unwind: ", ts_date)
     from_str = str(ts_date)
     #to_str = str(ts_date)[:-2] + '30'
     # from_ts = datetime.strptime(from_str, "%m/%d/%Y %H:%M:%S")
@@ -226,16 +225,25 @@ def unwind(ts_date,ts_data_df,t_data_df):
     from_ts = datetime.strptime(from_str, "%Y-%m-%d %H:%M:%S")
     #to_ts = datetime.strptime(to_str, "%Y-%m-%d %H:%M:%S")
     to_ts = from_ts + timedelta(seconds=15)
+
     ts_df = ts_data_df[from_ts:to_ts]
-
-    while(len(ts_df) == 0):
-        from_ts = from_ts + timedelta(seconds=15)
-        to_ts = from_ts + timedelta(seconds=15)
-        ts_df = ts_data_df[from_ts:to_ts]
-        print("while len(ts_df): ", len(ts_df))
-
     t_df = t_data_df[from_ts:to_ts]
-    print("len(windPosList): ", len(windPosList))
+    t_from_ts = from_ts
+    while (len(t_df) == 0):
+        t_from_ts = t_from_ts + timedelta(seconds=15)
+        t_to_ts = t_from_ts + timedelta(seconds=15)
+        t_df = t_data_df[t_from_ts:t_to_ts]
+        print('unwind while t_df from {} to {} '.format(t_from_ts, str(t_to_ts)))
+
+    ts_from_ts = from_ts
+    while(len(ts_df) == 0):
+        ts_from_ts = ts_from_ts + timedelta(seconds=15)
+        ts_to_ts = ts_from_ts + timedelta(seconds=15)
+        ts_df = ts_data_df[ts_from_ts:ts_to_ts]
+        print('unwind while ts_df from {} to {} '.format(ts_from_ts, str(ts_to_ts)))
+
+
+    #print("len(windPosList): ", len(windPosList))
     while (len(windPosList) > 0):
         unit = windPosList.pop(0)
         tickPrices = np.zeros(2)
@@ -249,7 +257,7 @@ def unwind(ts_date,ts_data_df,t_data_df):
             tickPrices[0] = priceEnhance(ts_df, len(ts_df), 'ask') * -1
             tickTimes[0] = ts_df.iloc[0]['ticktime']
         else:
-            print('unwind '+instrument1+' is None from {} to "{}!"'.format(from_str, to_str))
+            print('unwind '+instrument1+' is None from {} to "{}!"'.format(from_str, str(to_ts)))
 
         if (len(t_df) > 0 and unit.get_prices()[1] < 0): # wind pos is sell
             # tickPrices[2] = t_df.iloc[0]['bid']
@@ -260,7 +268,7 @@ def unwind(ts_date,ts_data_df,t_data_df):
             tickPrices[1] = priceEnhance(t_df, len(t_df), 'ask') * -1
             tickTimes[1] = t_df.iloc[0]['ticktime']
         else:
-            print(instrument2+' is None from {} to "{}!"'.format(from_str, to_str))
+            print(instrument2+' is None from {} to "{}!"'.format(from_str, str(to_ts)))
 
         trade_pair = []
         trade_pair.append(str(unit.get_times()[0])[:19])
@@ -309,7 +317,7 @@ def wind(ts_date,ts_data_df,t_data_df, isLongS1):
         tickPrices[1] = priceEnhance(t_df, len(t_df), 'bid')
         tickTimes[1] = t_df.iloc[0]['ticktime']
     else:
-        print( instrument2+'_df is None from {} to "{}!"'.format(from_str, to_str))
+        print( instrument2+'_df is None from {} to "{}!"'.format(from_str, str(to_ts)))
     if None in tickTimes:
         return
     windPosList.append(WindUnit(tickTimes, tickPrices))
@@ -353,6 +361,7 @@ ts_data_df.set_index('time', inplace=True)
 
 #df = pd.read_csv(data_file+"_vwap_all.csv")
 df = pd.read_csv(data_file+"_sec_vwap_all.csv")
+
 #测试相关性和协整关系
 _, pv_coint, _ = coint(df[instrument1], df[instrument1])
 corr, pv_corr = pearsonr(df[instrument1], df[instrument2])
