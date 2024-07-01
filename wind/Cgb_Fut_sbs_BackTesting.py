@@ -183,9 +183,18 @@ class BackTestingSystem_SBS:
         from_ts = datetime.strptime(from_str, "%Y-%m-%d %H:%M:%S")
         to_ts = datetime.strptime(to_str, "%Y-%m-%d %H:%M:%S")
 
-        ts_df = self.ts_data_df[from_ts:to_ts]
+
         tf_df = self.tf_data_df[from_ts:to_ts]
         t_df = self.t_data_df[from_ts:to_ts]
+        ts_df = self.ts_data_df[from_ts:to_ts]
+
+        ts_from_ts = from_ts
+        while (len(ts_df) == 0 and not isWind):
+            ts_from_ts = ts_from_ts + timedelta(seconds=int(secondsDelta))
+            ts_to_ts = ts_from_ts + timedelta(seconds=int(secondsDelta))
+            ts_df = self.ts_data_df[ts_from_ts:ts_to_ts]
+            print('while ts_df from {} to {} '.format(ts_from_ts, str(ts_to_ts)))
+
         tickPrices = np.zeros(3)
         tickTimes = [None] * 3
 
@@ -284,7 +293,7 @@ class BackTestingSystem_SBS:
         # wind sell(2y)-buy(5y)-sell(10y). unwind bsb
         self.tradeRecordsDf['diff_ts'] = self.tradeRecordsDf['wind_ts_p'] - self.tradeRecordsDf['unwind_ts_p']
         self.tradeRecordsDf['diff_tf'] = self.tradeRecordsDf['unwind_tf_p'] - self.tradeRecordsDf['wind_tf_p']
-        self.tradeRecordsDf['diff_t'] = self.tradeRecordsDf['wind_ts_p'] - self.tradeRecordsDf['unwind_t_p']
+        self.tradeRecordsDf['diff_t'] = self.tradeRecordsDf['wind_t_p'] - self.tradeRecordsDf['unwind_t_p']
 
         self.tradeRecordsDf['sum-2-3-1'] = self.tradeRecordsDf['diff_ts']* self.pointPrices[0] * self.contractNums[0] \
                                      + self.tradeRecordsDf['diff_tf'] * self.pointPrices[1] * self.contractNums [1] \

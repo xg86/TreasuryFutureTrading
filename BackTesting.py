@@ -314,7 +314,7 @@ class BackTestingSystem:
         return self.cumNetPnL
 
     def output_data(self):
-        self.preprocessing()
+        #self.preprocessing()
         self.calculateCumPositions()
         self.calculateInitMargin()
         self.calculateDailyPnL()

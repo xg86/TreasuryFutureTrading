@@ -51,4 +51,4 @@ print(df2.head())
 
 # strategy's cumulative positions
 output_data = backTesting.output_data()
-output_data.to_csv("~/Downloads/output.csv")
+output_data.to_csv("glen-output.csv")

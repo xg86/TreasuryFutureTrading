@@ -1,0 +1,50 @@
+AO63 ==>
+
+=IF(
+OR( all this 3 conditions are negative 
+$AM63 (-2)>-TriggerS(=2),
+$AN63(-8)> -TriggerT(=5),
+$AX62-$AR62>=$B$6,$A63>=$B$1
+),
+0,
+->> it is working 
+plconvergenceposition(
+$AB63:$AF63, ->> Positions
+$B63:$F$1082, -->Prices , ???? how can know price in future
+$B$8:$F$8, -->PointValue , constant
+
+$D$3(exit=2)*$AG63(tick size), --> ExitUp As Double, 
+$D$4(=StopLoss,20)*$AG63(tick size), --> Optional ExitDown,
+MAX(0,$B$2(#Periods to roll=940)-ROW($A63)+ROW($A$15)) -->  Optional nTime = -1,
+,
+5)
+)
+
+AP63 same as AO63
+
+
+MAX(0,$B$2-ROW($A63)+ROW($A$15))
+
+AX63 ==>
+=cumulpositions(
+$AB$15:$AF$1047, ==> Positions
+$B$15:$F$1047, ==> Prices
+$B$8:$F$8, ==> PointValue
+$AN$15:$AN$1047, ==>  T-score
+$D$2,(Trigger T) ==> TriggerT As Double, 
+$AM$15:$AM$1047, ==> Sigmas(z-score)
+$D$1, ==>  TriggerS As Double,
+$AG$15:$AG$1047, ==>  TicksSize 
+$D$3, ==> ExitUp
+$D$4, ==> ExitDown
+$B$2, (#Periods to roll=940)
+5, ==>  ??? nFut
+,
+$B$6) ==> MaxPos(30)
+
+AR63 ==>
+=SUM(IF(ROW($A64)-ROW($A$15:$A63)=$AP$15:$AP63,1,0))
+
+
+margin unit = 3/6+2/6+1/6 = 1
+initial margin / margin unit = notional 

@@ -8,18 +8,10 @@ from datetime import date, datetime, timedelta
 from Cgb_Fut_BackTesting import WindUnit
 
 
-windPosList = []
-data_file='国债期货20221014.xlsx'
-instrument1 = 'tf'
-instrument2 = 't'
+
 zscore_wind = 0.5
 zscore_unwind = 0.1
-print("data_file: ", data_file)
-tradeRecordsDfColumns = ['open_'+instrument1+'_time', 'open_'+instrument2+'_time',
-                                 'wind_'+instrument1+'_p', 'wind_'+instrument2+'_p',
-                                 'close_'+instrument1+'_time', 'close_'+instrument2+'_time',
-                                 'unwind_'+instrument1+'_p', 'unwind_'+instrument2+'_p']
-tradeRecordsDf = pd.DataFrame(columns=tradeRecordsDfColumns)
+
 
 def plotSettlePrice(df, var1, var2, var1_name, var2_name, title):
     temp = df[[var1, var2]].dropna()
@@ -347,35 +339,55 @@ def calculateDailyPnL():
 #data = pd.read_excel(r'futures.xlsx')
 #ts_data_df = pd.read_excel('Wind国债期货0831.xlsx', sheet_name=instrument1)
 #t_data_df = pd.read_excel('Wind国债期货0831.xlsx', sheet_name=instrument2)
-ts_data_df = pd.read_excel(data_file, sheet_name=instrument1)
-t_data_df = pd.read_excel(data_file, sheet_name=instrument2)
+
+freq = '1Min'
+pairs = [['ts', 't'], ['ts', 'tf'], ['tf', 't']]
+
+data_files = ['国债期货1107.xlsx','国债期货1108.xlsx','国债期货1109.xlsx','国债期货1110.xlsx','国债期货1111.xlsx','国债期货1114.xlsx','国债期货1115.xlsx']
+for data_file in data_files:
+    print("filename:" + data_file)
+    vwap_file = data_file + '_' + freq + "_vwap_all.csv"
+    print("vwap_file:" + vwap_file)
+    df = pd.read_csv(vwap_file)
+    for pair in pairs:
+        windPosList = []
+        instrument1 = pair[0]
+        instrument2 = pair[1]
+        print("instrument1 {} <> instrument2 {} ".format(instrument1, instrument2))
+        tradeRecordsDfColumns = ['open_'+instrument1+'_time', 'open_'+instrument2+'_time',
+                                         'wind_'+instrument1+'_p', 'wind_'+instrument2+'_p',
+                                         'close_'+instrument1+'_time', 'close_'+instrument2+'_time',
+                                         'unwind_'+instrument1+'_p', 'unwind_'+instrument2+'_p']
+        tradeRecordsDf = pd.DataFrame(columns=tradeRecordsDfColumns)
+
+        ts_data_df = pd.read_excel(data_file, sheet_name=instrument1)
+        t_data_df = pd.read_excel(data_file, sheet_name=instrument2)
+
+        t_data_df['time'] = pd.to_datetime(t_data_df['time'])
+        t_data_df['ticktime'] = t_data_df['time']
+        t_data_df.set_index('time', inplace=True)
+
+        ts_data_df['time'] = pd.to_datetime(ts_data_df['time'])
+        ts_data_df['ticktime'] = ts_data_df['time']
+        ts_data_df.set_index('time', inplace=True)
+
+        #df = pd.read_csv(data_file+"_vwap_all.csv")
 
 
-t_data_df['time'] = pd.to_datetime(t_data_df['time'])
-t_data_df['ticktime'] = t_data_df['time']
-t_data_df.set_index('time', inplace=True)
+        #测试相关性和协整关系
+        _, pv_coint, _ = coint(df[instrument1], df[instrument2])
+        corr, pv_corr = pearsonr(df[instrument1], df[instrument2])
+        print(instrument1 + "-" + instrument2 +" Cointegration pvalue : %0.4f"%pv_coint)
+        print(instrument1 + "-" + instrument2 +" Correlation coefficient is %0.4f and pvalue is %0.4f"%(corr, pv_corr))
 
-ts_data_df['time'] = pd.to_datetime(ts_data_df['time'])
-ts_data_df['ticktime'] = ts_data_df['time']
-ts_data_df.set_index('time', inplace=True)
-
-#df = pd.read_csv(data_file+"_vwap_all.csv")
-df = pd.read_csv(data_file+"_sec_vwap_all.csv")
-
-#测试相关性和协整关系
-_, pv_coint, _ = coint(df[instrument1], df[instrument1])
-corr, pv_corr = pearsonr(df[instrument1], df[instrument2])
-print(instrument1 + "-" + instrument2 +" Cointegration pvalue : %0.4f"%pv_coint)
-print(instrument1 + "-" + instrument2 +" Correlation coefficient is %0.4f and pvalue is %0.4f"%(corr, pv_corr))
-
-#plotSettlePrice(df, 'ts', 't', 'TS-2y', 'T-10y',
-#                'TS-2y 和 T-10y 价格走势图')
-S1, S2, ratios, ts_date = getRatios(df, instrument1, instrument2, 0)
-#zScore = getZScore(ratios, 1)
-#train, test, zscore_mv = getMovingIndex(ratios, 0.7, 5, 10, 1) # 5days rolliing or 60 days rolling
-#buy, sell = getTradeSignal(train, zscore_mv, 10, 1)
-#Trade2Contract(df, instrument1, instrument2, buy, sell, 10)
-PairsTrade(S1, S2, 5, 10, ts_date, ts_data_df, t_data_df)
-calculateDailyPnL()
-import uuid
-tradeRecordsDf.to_csv(data_file+"_pair_fut_"+instrument1+"_"+instrument2+"_"+str(uuid.uuid4().hex)+".csv")
+        #plotSettlePrice(df, 'ts', 't', 'TS-2y', 'T-10y',
+        #                'TS-2y 和 T-10y 价格走势图')
+        S1, S2, ratios, ts_date = getRatios(df, instrument1, instrument2, 0)
+        #zScore = getZScore(ratios, 1)
+        #train, test, zscore_mv = getMovingIndex(ratios, 0.7, 5, 10, 1) # 5days rolliing or 60 days rolling
+        #buy, sell = getTradeSignal(train, zscore_mv, 10, 1)
+        #Trade2Contract(df, instrument1, instrument2, buy, sell, 10)
+        PairsTrade(S1, S2, 5, 10, ts_date, ts_data_df, t_data_df)
+        calculateDailyPnL()
+        import uuid
+        tradeRecordsDf.to_csv(data_file+"_pair_fut_"+instrument1+"_"+instrument2+"_"+str(uuid.uuid4().hex)+".csv")
